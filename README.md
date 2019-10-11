@@ -5,4 +5,4 @@ Each incoming MODIS pixel will search the global map to determine if it exceeds 
 pixel.
 
 # contents and operation
-Numerous .h and .cpp files, with a Makefile which facilitates the building of the various programs.
+Numerous .h and .cpp files, with a Makefile which facilitates the building of the various programs. Only requirement is the hdf-4.2.13 library. 
