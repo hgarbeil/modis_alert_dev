@@ -40,6 +40,7 @@ public:
     void makegrid (float *basegrid, float startlat, float startlon, float gspace, int nx, int ny) ;
 void makegrid_32 (float *basegrid, float startlat, float startlon, float gspace, int nx, int ny) ;
 int get_mn_stdev_array (float *lat, float *lon, int inpix, int modisflag, float *mnstddev) ;
+int get_mn_stdev_array_old (float *lat, float *lon, int inpix, int modisflag, float *mnstddev) ;
 int get_mn_stdev_array_b32 (float *lat, float *lon, int inpix, int modisflag, float *mnstddev) ;
 int get_mn_stdev_array_nti (float *lat, float *lon, int inpix, int modisflag, float *mnstddev) ;
 int get_gridnum (float lat, float lon, int *x, int *y) ;	

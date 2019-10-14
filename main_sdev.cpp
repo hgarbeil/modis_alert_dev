@@ -16,7 +16,7 @@ int main (int argc, char *argv[]) {
 	unsigned char *locdata, ucval ;
 	
 	float filecount =0, startlat, startlon, gspace ;
-	float *lat, *lon, *b21, *b31, *b22, latval, lonval, xdist, ydist, dist ;
+	float *lat, *lon, *b21, *b32, *b22, latval, lonval, xdist, ydist, dist ;
 	int i, uval, thismonth, ns_modis, nl_modis, npix_modis, datearr[5], modisflag ;
 	int nx, ny, npix_grid, gridnum, alerthist[7] ;
 	long unxtime ;
@@ -176,7 +176,7 @@ int main (int argc, char *argv[]) {
 	sinu->set_badpix(geo->badpix) ;
 	b21 = &therm->raddata_cal[0] ;
 	b22 = &therm->raddata_cal[npix_modis] ;
-	b31 = &therm->raddata_cal[2*npix_modis] ;
+	b32 = &therm->raddata_cal[3*npix_modis] ;
 
 	//gridnum = sinu->get_gridnum(20., -157, &xval, yval) ;
 
@@ -195,7 +195,7 @@ int main (int argc, char *argv[]) {
 
         
         
-	int num_hits = al->calc_nti (b21, b22, b31, al_nti, al_nti_inds, al_nti_vals) ; 
+	int num_hits = al->calc_nti (b21, b22, b32, al_nti, al_nti_inds, al_nti_vals) ; 
 	// 0 is nti hits
 	int num_std_hits = al->calc_nstdv (b21, b22, mnstdv, al_std, al_std_inds, al_std_vals) ;
 	if (num_hits==0 && num_std_hits==0) {
