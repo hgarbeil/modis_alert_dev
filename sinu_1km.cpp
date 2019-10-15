@@ -233,7 +233,8 @@ void sinu_1km::makegrid (float *basegrid, float startlat, float startlon, float 
 		irow = listgrids[i] / 36;
 		icol = listgrids[i] - irow * 36 ;
 		// note that these are bsq files, mean, then stdev
-		sprintf (infile, "/local/worldbase/021km/orig_rad221_low_%03d_03_%02d_%02d.bsq\0",
+		//sprintf (infile, "/local/worldbase/021km/orig_rad221_low_%03d_03_%02d_%02d.bsq\0",
+                        sprintf (infile, "/local/worldbase/021km/orig/rad_%03d_03_%02d_%02d.bsq\0",
 		//sprintf (infile, "/local/worldbase/021km/new_rad221_low_%03d_03_%02d_%02d.bsq\0",
 			mday, irow, icol) ;
 		fin = fopen (infile, "r") ;
