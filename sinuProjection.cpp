@@ -14,7 +14,9 @@
  */
 
 #include "sinuProjection.h"
+#include "sinu_1km.h"
 #include "surftemp.h"
+extern int mon_days[] ;
 
 sinuProjection::sinuProjection() {
     Radius = 6371007.181 ;
@@ -79,7 +81,6 @@ void sinuProjection::fillGrid (int mon, int aq_terra_flag, float ulc_lat, float 
     
     // the ifil will depend upon the band, and the month to be extracted from the ave,stdev sinusoidal files.
     char const *outstr[] = {"rad221", "rad32", "nti"} ;
-    int mon_days[] = {1, 32,62, 92,123, 153,184,214,245,275,305,336} ;
 
     
 
@@ -150,7 +151,6 @@ void sinuProjection::getNTIValues (int mon, int aq_terra_flag, float *lat, float
     
     // the ifil will depend upon the band, and the month to be extracted from the ave,stdev sinusoidal files.
     char const *outstr[] = {"rad221", "rad32", "nti"} ;
-    int mon_days[] = {1, 32,62, 92,123, 153,184,214,245,275,305,336} ;
 
     
     m02ssh_open(outstr[2], mon_days[mon], modis_period(aq_terra_flag));
@@ -222,7 +222,6 @@ void sinuProjection::getAllValues (int mon, int aq_terra_flag, float *lat, float
     
     // the ifil will depend upon the band, and the month to be extracted from the ave,stdev sinusoidal files.
     char const *outstr[] = {"rad221", "rad32", "nti", "count"} ;
-    int mon_days[] = {1, 32,62, 92,123, 153,184,214,245,275,305,336} ;
 
     
     m02ssh_open(outstr[2], mon_days[mon], modis_period(aq_terra_flag));
@@ -315,7 +314,6 @@ void sinuProjection::getMaxNTIValues (int mon, int aq_terra_flag, float *lat, fl
     
     // the ifil will depend upon the band, and the month to be extracted from the ave,stdev sinusoidal files.
     char const *outstr[] = {"rad221", "rad32", "nti", "count"} ;
-    int mon_days[] = {1, 32,62, 92,123, 153,184,214,245,275,305,336} ;
 
 /*    
     m02ssh_open(outstr[3], mon_days[mon], modis_period(aq_terra_flag));
@@ -403,7 +401,6 @@ void sinuProjection::getCorrespondingValues(vector<int> alinds, int mon, int aq_
     char bfile [240] ;
     int i, ind, itype, num_alerts, iretn ;
     char const *outstr[] = {"rad221" , "rad32", "nti"} ;
-    int mon_days[] = {1, 32,62, 92,123, 153,184,214,245,275,305,336} ;
     int ixloc, iyloc ;
     float xloc, yloc ;
     m02ssh_coordvalue lst_val ;

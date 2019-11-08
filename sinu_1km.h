@@ -22,6 +22,8 @@
 
 using namespace std ;
 
+extern int mon_days[] ;
+
 class sinu_1km {
 public:
     sinu_1km();
@@ -43,6 +45,7 @@ int get_mn_stdev_array (float *lat, float *lon, int inpix, int modisflag, float 
 int get_mn_stdev_array_old (float *lat, float *lon, int inpix, int modisflag, float *mnstddev) ;
 int get_mn_stdev_array_b32 (float *lat, float *lon, int inpix, int modisflag, float *mnstddev) ;
 int get_mn_stdev_array_nti (float *lat, float *lon, int inpix, int modisflag, float *mnstddev) ;
+int get_max_array (float *lat, float *lon, int inpix, int modisflag, float *max2232) ;
 int get_gridnum (float lat, float lon, int *x, int *y) ;	
     float mDegToRad, wrld_startx, wrld_starty, gspace ;
 	void set_badpix (unsigned char *) ;

@@ -11,6 +11,7 @@ public :
 	unsigned char *badpix ;
 	void set_max (float, float) ;
 	void set_badpix (unsigned char *b) ;
+	int calc_max (float *b21, float *b22, float *b32, float *max2232, float *alval, vector <int> &alind, vector <float> &alvec) ;
 	int calc_nti (float *b21, float *b22, float *b31, float *alval, vector <int>&alind, 
 		vector<float>&alvec) ;
 	int calc_nstdv (float *b21, float *b22, float *mnstdv, float *alval, vector <int> &alind, vector <float> &alvec) ;

@@ -1,3 +1,13 @@
+/***
+* main_max.cpp
+* similar to the main_sdev program but instead of using the mean plus 3 std deviations calculated globally, this
+* compares the incoming pixel 4 micron radiance to the global max value. This information currently resides 
+* in the /local/worldbase/021km/full directory with files having a naming of rad221_highest_vvv_xx_yy_zz.bsq.
+* vvv - is 1st day of the month (1, 32...
+* xx - is modisflag
+* yy - is row number
+*zz - is column number
+***/
 #include "sinu_1km.h"
 #include <stdio.h>
 #include <string.h>
@@ -55,22 +65,30 @@ int main (int argc, char *argv[]) {
 	strcpy (monlog, prefix) ;
 	strcat (monlog, "_month.txt") ;
 	FILE *fmon_log = fopen (monlog, "w") ;
-	fprintf (flog, "FName\tJDay\tUnixtime\t#NTI\t#3_SDEV\t#4_SDEV\t#5_SDEV\r\n") ;
-	fprintf (fstd_log, "FName\tUnixtime\tLon\tLat\tSamp\tLine\tNTI\t#Stdvs\tb221\tb22mean\tb22stdv\tdist\tSolZenith\r\n") ;
-	fprintf (fnti_log, "FName\tUnixtime\tLon\tLat\tSamp\tLine\tNTI\t#Stdvs\r\n") ;
-	fprintf (fmon_log, "Month\t#NTI\t#3_SDEV\t#4_SDEV\t#5_SDEV\r\n") ;
-	strcpy (flayers, prefix) ;
+
+                    // write headings for ASCII column files
+	fprintf (flog, "FName\tJDay\tUnixtime\t#NTI\t98_MAX\t100_MAX\t110_MAX\r\n") ;
+	fprintf (fstd_log, "FName\tUnixtime\tLon\tLat\tSamp\tLine\tNTI\t#FRACMAX\tb221\tb22MAX\tb32max\tdist\tSolZenith\r\n") ;
+	fprintf (fnti_log, "FName\tUnixtime\tLon\tLat\tSamp\tLine\tNTI\tFRACMAX\r\n") ;
+	fprintf (fmon_log, "Month\t#NTI\t98MAX\t100_MAX\t110_MAX\r\n") ;
+	
+                    /***
+                    * layers and location files
+                    * layers will contain radiance, number of nti hits, number of maxhits
+                    * location will have just the location of these hits, not a count of hits
+                    ***/
+                    strcpy (flayers, prefix) ;
 	strcat (flayers, "_layers") ;
-	strcpy (flocfile, prefix) ;
+                    strcpy (flocfile, prefix) ;
 	strcat (flocfile, "_location") ;
 
 	modis_hdf *therm, *geo ;
 
-	float *mnstdv ;
+	float *max2232 ;
 	vector <int> al_nti_inds ;
 	vector <float> al_nti_vals ;
-	vector <int> al_std_inds ;
-	vector <float> al_std_vals ;
+	vector <int> al_max_inds ;
+	vector <float> al_max_vals ;
 	alert *al = new alert() ;
 
 
@@ -80,8 +98,8 @@ int main (int argc, char *argv[]) {
                     // size of output tile (800m pixels)
 	//nx = 3800 ;
 	//ny = 3500 ;
-	nx = 2048 ;
-	ny = 2048 ;
+	nx = 1200 ;
+	ny = 1200 ;
 	ns_modis = 1354 ;
 	nl_modis = 2030 ;
 
@@ -103,10 +121,8 @@ int main (int argc, char *argv[]) {
 	npix_modis = ns_modis * nl_modis ;
 
                     // alloc arrays for input global mn, stdv and output arrays
-	mnstdv = new float [npix_modis *2] ;
+	max2232 = new float [npix_modis *2] ;
 	locdata = new unsigned char [nx * ny * 3] ;
-
-	
 
 	FILE *ffile = fopen (flist, "r") ;
 
@@ -122,7 +138,7 @@ int main (int argc, char *argv[]) {
 	float *basegrid = new float [2*nx * ny] ;
 	unsigned short *layers = new unsigned short  [6 * nx * ny] ;
 	float *al_nti = new float [1354L * 2030] ;
-	float *al_std = new float [1354L * 2030] ;
+	float *al_max = new float [1354L * 2030] ;
 
 	sinu_1km *sinu  = new sinu_1km () ;
 	sinu->makegrid (basegrid, startlat, startlon, gspace, nx, ny) ;
@@ -156,6 +172,7 @@ int main (int argc, char *argv[]) {
 	al->set_max (therm->b21max, therm->b22max) ;
 	thismonth = datearr[1] - 1 ;
 	this_mday = mon_days[thismonth];
+    // use the section below when the global dataset is not complete
 	/*
 	if (this_mday != 1 && this_mday <62 )  {
 		delete therm ;
@@ -193,41 +210,51 @@ int main (int argc, char *argv[]) {
 	b21 = &therm->raddata_cal[0] ;
 	b22 = &therm->raddata_cal[npix_modis] ;
 	b32 = &therm->raddata_cal[3*npix_modis] ;
+	/*
+	FILE *fout = fopen ("modimage","w") ;
+	fwrite (b21, 4, ns_modis * nl_modis, fout) ;
+	fwrite (b22, 4, ns_modis * nl_modis, fout) ;
+	fwrite (b32, 4, ns_modis * nl_modis, fout) ;
+	fclose (fout) ;
+	*/
 
 	//gridnum = sinu->get_gridnum(20., -157, &xval, yval) ;
 
 	// get 4micron mean and stddev for each pixel in the modis image
 	sinu->set_mday (this_mday) ;
-	sinu->get_mn_stdev_array (lat, lon, 1354L*2030, modisflag, mnstdv) ;
-	// DEBUG - output b221 mean and stdv
+	//sinu->get_mn_stdev_array (lat, lon, 1354L*2030, modisflag, mnstdv) ;
+	
+    // load up the max2232 arrays , bsq with 22 in band 1 and 32 in band2
+    sinu->get_max_array (lat, lon, 1354L*2030, modisflag, max2232) ;
+                    // DEBUG - output b221 mean and stdv
+	
+	// this will be in the same coord system as the modis image in
+	// question, write it out
 	/*
-	FILE *fout2 = fopen ("mnstdv", "w") ;
-	fwrite (mnstdv, 8, 1354L * 2030, fout2) ;
+	FILE *fout2 = fopen ("max2232", "w") ;
+	fwrite (max2232, 8, 1354L * 2030, fout2) ;
 	fclose (fout2) ;
 	*/
-	// DEBUG - output b22 
-	/*
-	FILE *fout3 = fopen ("b221", "w") ;
-	fwrite (b21, 4, 1354L * 2030, fout3) ;
-	fwrite (b22, 4, 1354L * 2030, fout3) ;
-	fclose (fout3) ;
-	*/
-                    //void getNTIValues (int mon, int aq_terra_flag, float *lat, float *lon, int npix, float *out22, float *outarr, bool openFlag) ;
-                    //sinu->getNTIValues (thismonth, 0, lat, lon, 1354*2030,b22_5, nti_5, 0) ;
-               
+                    //return (-1) ;
+	
+	
+                   
 	al_nti_inds.clear() ;
 	al_nti_vals.clear() ;
-	al_std_inds.clear() ;
-	al_std_vals.clear() ;
+	al_max_inds.clear() ;
+	al_max_vals.clear() ;
 	// zero out alerthist
+                    // zero out the alert histogram
 	memset (alerthist, 0, sizeof (alerthist)) ;
 
         
         
 	int num_hits = al->calc_nti (b21, b22, b32, al_nti, al_nti_inds, al_nti_vals) ; 
 	// 0 is nti hits
-	int num_std_hits = al->calc_nstdv (b21, b22, mnstdv, al_std, al_std_inds, al_std_vals) ;
-	if (num_hits==0 && num_std_hits==0) {
+	//int num_std_hits = al->calc_nstdv (b21, b22, mnstdv, al_max, al_max_inds, al_max_vals) ;
+    int num_std_hits = 0 ;
+    int num_max_hits = al->calc_max (b21, b22, b32, max2232, al_max, al_max_inds, al_max_vals) ;
+	if (num_hits==0 && num_max_hits==0) {
 		sprintf (outstr, "%s %d\t %ld\t %d\t %d\t %d\t %d \r\n", tmpname, datearr[2], unxtime, alerthist[0], alerthist[1], alerthist[2], 
 			alerthist[3]) ;
 		fputs (outstr, flog) ;
@@ -241,9 +268,9 @@ int main (int argc, char *argv[]) {
 	// now fill the layers grids 
 	int index, grid_x, grid_y, iline, isamp ;
 	//cout << "ALERTS : " << al_nti_inds.size()  <<  endl ;
-	//cout << "3std ALERTS : " << al_std_inds.size()  <<  endl ;
+	//cout << "3std ALERTS : " << al_max_inds.size()  <<  endl ;
 	//alerthist[0] = al_nti_inds.size() ;
-	//alerthist[1] = al_std_inds.size() ;
+	//alerthist[1] = al_max_inds.size() ;
 	float b221 ;
 	int count = 0 ;
 	for (i=0; i<al_nti_inds.size() ; i++) {
@@ -254,16 +281,18 @@ int main (int argc, char *argv[]) {
 		lonval = lon[index] ;
 		grid_x = int((lonval - startlon) /gspace +0.5) ; 
 		grid_y = int((startlat - latval) /gspace +0.5) ; 
+		if (grid_x < 0 || grid_y < 0) continue ;
+		if (grid_x >= nx || grid_y >= ny) continue ;
 		layers[2*npix_grid + grid_y*nx+grid_x]++ ;
 		
 		fprintf (fnti_log, "%s %ld %f %f %d %d %f %f\r\n", tmpname, unxtime,
-			lonval, latval, isamp, iline, al_nti[index], al_std[index]) ;
+			lonval, latval, isamp, iline, al_nti[index], al_max[index]) ;
 		fflush (fnti_log);
 		alerthist[0]++ ;
 		
 	}
-	for (i=0; i<al_std_inds.size() ; i++) {
-		index = al_std_inds.at(i) ;
+	for (i=0; i<al_max_inds.size() ; i++) {
+		index = al_max_inds.at(i) ;
 		iline = index / ns_modis ;
 		isamp = index - (iline * ns_modis) ;
 		latval = lat[index] ;
@@ -272,7 +301,7 @@ int main (int argc, char *argv[]) {
 		grid_y = int((startlat - latval) /gspace +0.5) ; 
 		if (grid_x < 0 || grid_y < 0) continue ;
 		if (grid_x >= nx || grid_y >= ny) continue ;
-		if (al_std_vals.at(i) > 3.0) {
+		if (al_max_vals.at(i) > .950) {
 			layers[3 * npix_grid + grid_y*nx+grid_x]++ ;
 			// 1 is 2 sdev
 			monthhist[thismonth*4+1]++ ;
@@ -281,7 +310,7 @@ int main (int argc, char *argv[]) {
 			locdata[2*npix_grid + grid_y*nx+grid_x] = 0 ;
 			alerthist[1]++ ;
 		}
-		if (al_std_vals.at(i) > 4) {
+		if (al_max_vals.at(i) > 1.0) {
 			layers[4 * npix_grid + grid_y*nx+grid_x]++ ;
 			alerthist[2]++ ;
 			// 2 is 2.6 sdev
@@ -290,7 +319,7 @@ int main (int argc, char *argv[]) {
 			locdata[npix_grid + grid_y*nx+grid_x] = 255 ;
 			locdata[2*npix_grid + grid_y*nx+grid_x] = 0 ;
 		}
-		if (al_std_vals.at(i) > 5.) {
+		if (al_max_vals.at(i) > 1.1) {
 			layers[5 * npix_grid + grid_y*nx+grid_x]++ ;
 			alerthist[3]++ ;
 			// 3 is 3 sdev
@@ -305,9 +334,9 @@ int main (int argc, char *argv[]) {
 		ydist = latval - cent_lat ;
 		xdist = lonval - cent_lon ;
 		dist = 100. * (sqrt (xdist * xdist + ydist * ydist)) ;
-		if (b221 > 1.9) b221 = b21[index] ;
+		if (b221 > 2.0) b221 = b21[index] ;
 		fprintf (fstd_log, "%s %ld %f %f %d %d %f %f %f %f %f %f %f\r\n", tmpname, unxtime,
-			lonval, latval, isamp, iline, al_nti[index], al_std[index],  b221, mnstdv[index*2], mnstdv[index*2+1], dist,
+			lonval, latval, isamp, iline, al_nti[index], al_max[index],  b221, max2232[index], max2232[index+npix_modis], dist,
 				geo->solzen[index]/100.) ; 
 		fflush (fstd_log);
 	}
@@ -348,15 +377,13 @@ int main (int argc, char *argv[]) {
 	fout = fopen (flocfile, "w") ;
 	fwrite (locdata, 1, 3 * npix_grid, fout) ;
 	fclose (fout) ;
-
-        
         
         
 	delete [] al_nti ;
-	delete [] al_std ;
+	delete [] al_max ;
 	delete [] layers ;
 	delete [] basegrid ;
-	delete [] mnstdv ;
+	delete [] max2232 ;
 	delete [] locdata ;
 	delete [] monthhist ;
 

@@ -311,6 +311,7 @@ int alert::calc_nstdv (float *b21, float *b22, float *mnstdv, float *al_std, vec
 		al_std[i] = 0. ;
 		meanval = mnstdv[i*2] ;
 		stdval = mnstdv[i*2+1] ;
+		if (stdval <= 0.000001) continue ;
 		b221val = b22val ;
                                     // check for bad data
 		if (b21val < 0 && b22val <0) continue ;
@@ -330,6 +331,50 @@ int alert::calc_nstdv (float *b21, float *b22, float *mnstdv, float *al_std, vec
 	}
 	return alind.size() ;
 }
+/***
+* calc_max 
+* method to go through the modis b22 values to check if they exceed the global values found in max2232. If so, the 
+* values for that pixel are appended to the relevant vectors, alind and alvec. 
+***/
+
+int alert::calc_max (float *b21, float *b22, float *b32, float *max2232, float *al_std, vector <int> &alind, vector <float> &alvec) {
+
+	int i, count=0 ;
+	float zval, b21val, b32val, b22val, b221val, maxval ;
+	float T32, T22 ;
+
+	for (i=0; i<npix; i++) {
+		if (badpix[i]) continue ;
+		b21val = b21[i] ;
+		b22val = b22[i] ;
+		b32val = b32[i] ;
+		al_std[i] = 0. ;
+		maxval = max2232[i] ;
+		b221val = b22val ;
+                                    // check for bad data
+		if (b21val < 0 && b22val <0) continue ;
+        // check for saturation
+		if (b22val > b22max && b21val > b21max) continue ;
+		// only use 21 if 22 is saturated
+		if (b22val > 2.0) {
+			b221val = b21val ;
+		}
+		T22 = bb_radtotemp (4, b22val) ;
+		T32 = bb_radtotemp (12, b32val) ;
+		if (T22-T32 <15. && zval < 1.15) continue ;
+		zval =( b221val / maxval) ;
+		al_std[i] = zval ;
+		if (zval >.95) {
+			alind.push_back(i) ;
+			alvec.push_back (zval) ;
+			//cout << alind.size() << " " << zval << endl ;
+		}
+
+	}
+	return alind.size() ;
+
+}
+
 
 int alert::calc_nti_stdv (float *b21, float *b22, float *b32, float *mnstdv, float *al_std, vector <int> &alind, vector <float> &alvec) {
 
@@ -347,7 +392,7 @@ int alert::calc_nti_stdv (float *b21, float *b22, float *b32, float *mnstdv, flo
 		b221val = b22val ;
 		if (b21val < 0 && b22val <0) continue ;
 		if (b22val > b22max && b21val > b21max) continue ;
-		if (b22val > 2.2) {
+		if (b22val > 2.0) {
 			b221val = b21val ;
 		}
                 ntival = (b221val - b32val) / (b221val + b32val) ;

@@ -15,7 +15,7 @@ extern long converttime_unix(int year, int mon, int day, int hr, int min, int se
 
 int main(int argc, char *argv[]) {
 
-    char flist[420], infile [420], *tmpname, prefix[420], statsfile[420];
+    char flist[420], infile [420], cfile[420], *tmpname, prefix[420], statsfile[420];
     char flocfile [420];
     char monlog[420], flayers[420];
     char infile_geo [420], outstr[240];
@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
     int this_mday;
 
     if (argc < 3) {
-        cout << "Usage: modis_sdev flist  log_prefix modisflag c_lon c_lat" << endl;
+        cout << "Usage: modis_stats flist  log_prefix modisflag c_lon c_lat" << endl;
         exit(-1);
     }
 
@@ -53,6 +53,8 @@ int main(int argc, char *argv[]) {
     cent_lat = atof(*++argv);
     
     strcpy(statsfile, prefix);
+    strcpy(cfile, prefix);
+    strcat(cfile, "_count");
 
     modis_hdf *therm, *geo;
 
@@ -64,8 +66,8 @@ int main(int argc, char *argv[]) {
     // geom file
     // input file contains the full path names of each file 
 
-    nx = 3800;
-    ny = 3500;
+    nx = 2048;
+    ny = 2048;
     ns_modis = 1354;
     nl_modis = 2030;
     // hawaii
@@ -98,7 +100,7 @@ int main(int argc, char *argv[]) {
     FILE *ffile = fopen(flist, "r");
 
 
-    gspace = .008;
+    gspace = .0092;
     startlat = cent_lat + ny / 2. * gspace;
     startlon = cent_lon - nx / 2 * gspace;
     
@@ -184,7 +186,7 @@ int main(int argc, char *argv[]) {
             
             
             
-            b221 = (b22[i]>b21[i]?b22[i]:b21[i]) ;
+            b221 = b22[i] ;
             if (b221 >2.) b221 = b21[i] ;
             if (b221 <0.04) continue ;
             alvalue = (b221 - b32[i]) / (b221 + b32[i]) ;
@@ -235,9 +237,14 @@ int main(int argc, char *argv[]) {
       }
     
     
-    FILE *fout = fopen(statsfile, "w'") ;
+    FILE *fout = fopen(statsfile, "w") ;
     fwrite (statsdata, 8, npix_grid * 5, fout) ;
     fclose (fout) ;
+    FILE *foutc = fopen(cfile, "w") ;
+    fwrite (countdata, 2, npix_grid , fout) ;
+    fclose (fout) ;
+
+	
     
     char ohdr[240];
     strcpy(ohdr, statsfile);

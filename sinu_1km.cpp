@@ -15,6 +15,7 @@
 
 #include "sinu_1km.h"
 #include "surftemp.h"
+int mon_days[] = {1,31,62,92,123,153,184,214,244,275,305,336} ;
 
 sinu_1km::sinu_1km() {
     Radius = 6371007.181 ;
@@ -234,7 +235,7 @@ void sinu_1km::makegrid (float *basegrid, float startlat, float startlon, float 
 		icol = listgrids[i] - irow * 36 ;
 		// note that these are bsq files, mean, then stdev
 		//sprintf (infile, "/local/worldbase/021km/orig_rad221_low_%03d_03_%02d_%02d.bsq\0",
-                        sprintf (infile, "/local/worldbase/021km/orig/rad_%03d_03_%02d_%02d.bsq\0",
+		sprintf (infile, "/local/worldbase/021km/orig/rad_low_%03d_03_%02d_%02d.bsq\0",
 		//sprintf (infile, "/local/worldbase/021km/new_rad221_low_%03d_03_%02d_%02d.bsq\0",
 			mday, irow, icol) ;
 		fin = fopen (infile, "r") ;
@@ -334,17 +335,20 @@ int sinu_1km::get_mn_stdev_array_b32 (float *lat, float *lon, int npix, int modi
 		irow = listgrids[i] / 36;
 		icol = listgrids[i] - irow * 36 ;
 		cout << listgrids[i] << "  : " << irow << "  :  " << icol << endl ;
-		sprintf (infile, "/local/worldbase/021km/orig_rad32_low_%03d_0%1d_%02d_%02d.bsq\0",
+		sprintf (infile, "/local/worldbase/021km/orig/rad_low_%03d_0%1d_%02d_%02d.bsq\0",
 		//sprintf (infile, "/local/worldbase/021km/new_rad221_low_%03d_0%1d_%02d_%02d.bsq\0",
 			mday, modisflag, irow, icol) ;
 		fin = fopen (infile, "r") ;
 		if (fin ==NULL) {
 			cout << "UHOH could not read " << endl ;
 			cout << infile << endl ;
-			return(-1) ;
+			continue ;
+			//return(-1) ;
 		}
+		// skip over b21 data
+		fseek (fin, 2 * 4 * 1200 * 1200, SEEK_SET) ;
 		fread (&indata[i * 1200L * 1200L], 4, 1200L * 1200L, fin);
-		fread (&indata_stdev[i * 1200L * 1200L], 4, 1200L * 1200L, fin);
+		//fread (&indata_stdev[i * 1200L * 1200L], 4, 1200L * 1200L, fin);
 		fclose (fin) ;
 	}
 	
@@ -454,7 +458,8 @@ int sinu_1km::get_mn_stdev_array_nti(float *lat, float *lon, int npix, int modis
 		if (fin ==NULL) {
 			cout << "UHOH could not read " << endl ;
 			cout << infile << endl ;
-			return(-1) ;
+			continue ;
+			//return(-1) ;
 		}
 		fread (&indata[i * 1200L * 1200L], 4, 1200L * 1200L, fin);
 		fread (&indata_stdev[i * 1200L * 1200L], 4, 1200L * 1200L, fin);
@@ -566,7 +571,8 @@ int sinu_1km::get_mn_stdev_array_old (float *lat, float *lon, int npix, int modi
 		if (fin ==NULL) {
 			cout << "UHOH could not read " << endl ;
 			cout << infile << endl ;
-			return(-1) ;
+			continue ;
+			//return(-1) ;
 		}
 		fread (&indata[i * 1200L * 1200L], 4, 1200L * 1200L, fin);
 		fread (&indata_stdev[i * 1200L * 1200L], 4, 1200L * 1200L, fin);
@@ -678,7 +684,8 @@ int sinu_1km::get_mn_stdev_array (float *lat, float *lon, int npix, int modisfla
 		if (fin ==NULL) {
 			cout << "UHOH could not read " << endl ;
 			cout << infile << endl ;
-			return(-1) ;
+			continue ;
+			//return(-1) ;
 		}
 		fread (&indata[i * 1200L * 1200L], 4, 1200L * 1200L, fin);
 		fread (&indata_stdev[i * 1200L * 1200L], 4, 1200L * 1200L, fin);
@@ -713,6 +720,120 @@ int sinu_1km::get_mn_stdev_array (float *lat, float *lon, int npix, int modisfla
 		
 	delete [] indata ;	
 	delete [] indata_stdev ;
+	delete [] indii ;
+
+
+	return (1) ;
+
+}
+
+int sinu_1km::get_max_array (float *lat, float *lon, int npix, int modisflag, float *max2232) {
+
+	char infile[420] ;
+	int thisngrid, i, j, igrid, ngrids=0, gridnum, imnum ;
+	int listgrids [100], inloc, xloc, yloc, firstgrid=1, foundgrid ;
+	int *indii = new int [npix * 3] ;
+	float latval, lonval, xval, yval ;
+
+	// initialize
+	for (i=0; i<npix* 3; i++) indii[i]=-1 ;
+
+	for (i=0; i<npix; i++) {
+		if (badpix[i]) continue ;
+		latval = lat[i] ;
+		lonval = lon[i] ;
+		gridnum = get_gridnum (latval, lonval, &xloc, &yloc) ;  
+
+		if (firstgrid) {
+			listgrids[ngrids++]=gridnum ;
+			firstgrid=0 ;
+			indii [i*3] = 0 ;
+		}
+		else {
+			foundgrid=0 ;
+				// not a new grid
+			for (igrid=0; igrid<ngrids; igrid++) {
+				if (gridnum == listgrids[igrid]) {
+					indii [i*3] = igrid ;
+					foundgrid=1 ;
+					break ;
+				}
+			}
+				// if a new grid - unique number
+			if (foundgrid==0) {
+				indii [i*3] = ngrids ;
+				listgrids[ngrids++] = gridnum ;
+			}
+		}
+					
+			//indii[i*nx*3+j*3]=gridnum ;
+		indii[i*3+1]=xloc ;
+		indii[i*3+2]=yloc ;
+	
+	}
+
+	cout << "number of grids is " << ngrids << endl ;
+	for (i=0; i< ngrids; i++) {
+		cout << i << "  :  " << listgrids[i] << endl ;
+		
+	}
+
+	float *indata_22 = new float [1200L * 1200L *  ngrids] ;
+	float *indata_32 = new float [1200L * 1200L *  ngrids] ;
+	FILE *fin ;
+	int irow, icol , isamp;
+	for (i=0; i<ngrids; i++) {
+		irow = listgrids[i] / 36;
+		icol = listgrids[i] - irow * 36 ;
+		cout << listgrids[i] << "  : " << irow << "  :  " << icol << endl ;
+		//sprintf (infile, "/local/worldbase/021km/full/rad221_highest _%03d_0%1d_%02d_%02d.bsq\0",
+		//sprintf (infile, "/user3/hg/modis/highest_full/rad221_highest_%03d_0%1d_%02d_%02d_max\0",
+		// **********************************************************************************
+		// use the median filter max file 
+		sprintf (infile, "/user3/hg/modis/highest_filt/rad221_highest_%03d_0%1d_%02d_%02d_max\0",
+			mday, modisflag, irow, icol) ;
+		fin = fopen (infile, "r") ;
+		if (fin ==NULL) {
+			cout << "UHOH could not read " << endl ;
+			cout << infile << endl ;
+			continue ;
+			//return(-1) ;
+		}
+                                        
+		fread (&indata_22[i * 1200L * 1200L], 4, 1200L * 1200L, fin);
+                                        fread (&indata_32[i * 1200L * 1200L], 4, 1200L * 1200L, fin);
+		fclose (fin) ;
+                                        
+	}
+	
+	for (isamp =0 ; isamp < npix ; isamp++) {
+		if (badpix[isamp]) {
+			max2232[isamp] = 0 ;
+			max2232[isamp+npix] = 10 ;
+			continue ;
+		}
+			
+		gridnum = indii[isamp*3] ;
+		if (gridnum == 1) {
+			int hg = 0 ;
+			hg*=2 ;
+		}
+		xloc = indii[isamp*3+1] ;
+		yloc = indii[isamp*3+2] ;
+		inloc = gridnum * 1200L * 1200L + yloc * 1200L + xloc ;
+		max2232[isamp] = indata_22 [inloc] ;
+		max2232[npix+isamp] = indata_32 [inloc] ;
+	}
+
+/*
+	FILE *fout =fopen ("testfile_mnsdv", "w") ;
+	fwrite (mnstddev, 4,  npix * 2, fout) ;
+	//fwrite (indii, 4, 3 * nx *  ny, fout) ;
+	fclose(fout) ;
+	*/
+		
+	delete [] indata_22 ;	
+	delete [] indata_32 ;
 	delete [] indii ;
 
 
@@ -774,7 +895,6 @@ void sinu_1km::fillGrid (int mon, int aq_terra_flag, float ulc_lat, float ulc_lo
     
     // the ifil will depend upon the band, and the month to be extracted from the ave,stdev sinusoidal files.
     char const *outstr[] = {"rad221", "rad32", "nti"} ;
-    int mon_days[] = {1, 32,62, 92,123, 153,184,214,245,275,305,336} ;
 
     
 
@@ -846,7 +966,6 @@ void sinu_1km::getNTIValues (int mon, int aq_terra_flag, float *lat, float *lon,
     
     // the ifil will depend upon the band, and the month to be extracted from the ave,stdev sinusoidal files.
     char const *outstr[] = {"rad221", "rad32", "nti"} ;
-    int mon_days[] = {1, 32,62, 92,123, 153,184,214,245,275,305,336} ;
 
     
     m02ssh_open(outstr[2], mon_days[mon], modis_period(aq_terra_flag));
@@ -918,7 +1037,6 @@ void sinu_1km::getAllValues (int mon, int aq_terra_flag, float *lat, float *lon,
     
     // the ifil will depend upon the band, and the month to be extracted from the ave,stdev sinusoidal files.
     char const *outstr[] = {"rad221", "rad32", "nti", "count"} ;
-    int mon_days[] = {1, 32,62, 92,123, 153,184,214,245,275,305,336} ;
 
     
     m02ssh_open(outstr[2], mon_days[mon], modis_period(aq_terra_flag));
@@ -1011,7 +1129,6 @@ void sinu_1km::getMaxNTIValues (int mon, int aq_terra_flag, float *lat, float *l
     
     // the ifil will depend upon the band, and the month to be extracted from the ave,stdev sinusoidal files.
     char const *outstr[] = {"rad221", "rad32", "nti", "count"} ;
-    int mon_days[] = {1, 32,62, 92,123, 153,184,214,245,275,305,336} ;
 
 /*    
     m02ssh_open(outstr[3], mon_days[mon], modis_period(aq_terra_flag));
@@ -1099,7 +1216,6 @@ void sinu_1km::getCorrespondingValues(vector<int> alinds, int mon, int aq_terra_
     char bfile [240] ;
     int i, ind, itype, num_alerts, iretn ;
     char const *outstr[] = {"rad221" , "rad32", "nti"} ;
-    int mon_days[] = {1, 32,62, 92,123, 153,184,214,245,275,305,336} ;
     int ixloc, iyloc ;
     float xloc, yloc ;
     m02ssh_coordvalue lst_val ;
