@@ -260,10 +260,57 @@ int alert::calc_bb (float *b21, float *b22, float *b32, float *exval,  float *mn
 	return al_bbind.size() ;
 }
 
+
+// does the 1.6 micron band correction then calculates nti
+//
+int alert::calc_nti_day (float *b6, float *b21, float *b22, float *b32, float *alval, vector <int> &alind, vector <float> &alvec) {
+	int i, count=0 ;
+	float b21val, b32val, b22val, b221val, b6comp ;
+
+	nti_thresh = -0.65 ;
+
+	for (i=0; i<npix; i++) {
+		alval[i] = -5.;
+		if (badpix[i]) {
+			continue ;
+		}
+		if (i==5*1354+1297) {
+			int hg=0 ;
+			hg*= 1;
+		}
+		b32val = b32[i] ;
+		b22val = b22[i] ;
+		b21val = b21[i] ;
+		b221val = b22val ;
+		if (b32val < 0) continue ;
+		if (b21val < 0.1 && b22val <0.01) continue ;
+		if (b22val > b22max && b21val > b21max) continue ;
+		
+		if (b22val >  b22max || b22val < -9.9){  
+			b221val = b21val ;
+		}
+		b6comp = 0. ;
+		if (b6[i] > 0.) 
+			b6comp = .0426 * b6[i] ;
+		b221val -= b6comp ;
+		if (b221val < 0) b221val = 0. ;
+
+
+		alval[i] = (b221val - b32val) / (b221val + b32val) ;
+		if (alval[i] > nti_thresh) {
+			alind.push_back(i) ;
+			alvec.push_back(alval[i]) ;
+		}
+	}
+
+	return alind.size() ;
+}
 int alert::calc_nti (float *b21, float *b22, float *b32, float *alval, vector <int> &alind, vector <float> &alvec) {
 	int i, count=0 ;
 	float b21val, b32val, b22val, b221val ;
 
+
+	nti_thresh = -0.8 ;
 
 	for (i=0; i<npix; i++) {
 		if (badpix[i]) {
@@ -276,10 +323,10 @@ int alert::calc_nti (float *b21, float *b22, float *b32, float *alval, vector <i
 		b221val = b22val ;
 		alval[i] = -5.;
 		if (b32val < 0) continue ;
-		if (b22val <= 0  && b21val <=0) continue ;
+		if (b21val < 0.1 && b22val <0.01) continue ;
 		if (b22val > b22max && b21val > b21max) continue ;
 		
-		if (b22val >  b22max && b21val >0){  
+		if (b22val >  b22max || b22val < 0.){  
 			b221val = b21val ;
 		}
 		alval[i] = (b221val - b32val) / (b221val + b32val) ;
@@ -337,10 +384,10 @@ int alert::calc_nstdv (float *b21, float *b22, float *mnstdv, float *al_std, vec
 * values for that pixel are appended to the relevant vectors, alind and alvec. 
 ***/
 
-int alert::calc_max (float *b21, float *b22, float *b32, float *max2232, float *al_std, vector <int> &alind, vector <float> &alvec) {
+int alert::calc_max_day (float *b6, float *b21, float *b22, float *b32, float *max2232, float *al_std, vector <int> &alind, vector <float> &alvec) {
 
 	int i, count=0 ;
-	float zval, b21val, b32val, b22val, b221val, maxval ;
+	float zval, fracval, b221_reflcorr, b21val, b32val, b22val, b221val, maxval ;
 	float T32, T22 ;
 
 	for (i=0; i<npix; i++) {
@@ -351,22 +398,176 @@ int alert::calc_max (float *b21, float *b22, float *b32, float *max2232, float *
 		al_std[i] = 0. ;
 		maxval = max2232[i] ;
 		b221val = b22val ;
-                                    // check for bad data
-		if (b21val < 0 && b22val <0) continue ;
+        // check for bad data
+		if (b21val < 0.01 && b22val <.01) continue ;
         // check for saturation
 		if (b22val > b22max && b21val > b21max) continue ;
+		// only use 21 if 22 is saturated
+		if (b22val > 2.0 || b22val < -1) {
+			b221val = b21val ;
+		}
+
+		// Perform Solar Correction - not being used 
+		b221_reflcorr = b221val ;
+		if (b6[i] > 0)
+			b221_reflcorr = b221val - .0426 * b6[i] ;
+		//if (b221_reflcorr < 0) continue ;
+		b221val = b221_reflcorr ;	
+
+
+
+		T22 = bb_radtotemp (4, b221val) ;
+		T32 = bb_radtotemp (12, b32val) ;
+		zval = T22 - T32 ;
+		if (zval <40. ) continue ;
+		fracval =( b221val / maxval) ;
+		al_std[i] = zval ;
+		if (fracval >.95) {
+			alind.push_back(i) ;
+			alvec.push_back (fracval) ;
+			//cout << alind.size() << " " << zval << endl ;
+		}
+
+	}
+	return alind.size() ;
+
+}
+
+// where is glint correction
+int alert::calc_max_day_dev (float *b6, float *b21, float *b22, float *b32, float *max2232, float *al_std, vector <int> &alind, vector <float> &alvec) {
+
+	int i, samp, count=0 ;
+	float zval, fracval, b221_reflcorr, b6val, b21val, b32val, b22val, b221val, maxval, maxval32 ;
+	float T32, T22 ;
+	float T32_global ;
+
+	for (i=0; i<npix; i++) {
+		if (badpix[i]) continue ;
+		b21val = b21[i] ;
+		b22val = b22[i] ;
+		b32val = b32[i] ;
+		al_std[i] = 0. ;
+		maxval = max2232[i] ;
+		if (maxval <= 0.04) continue ;
+		maxval32 = max2232[i+npix] ;
+		if (maxval32 <= 1.) continue ;
+		b221val = b22val ;
+        // check for bad data - cold off scale
+		if (b21val < 0.1 && b22val <.001) continue ;
+		// if b22 saturated
+		if (b221val < -9.9) b221val = b21val ;
+        // check for saturation
+		if (b22val > b22max) b221val = b21val ;
+		// only use 21 if 22 is saturated
+		b6val = (b6[i] > 0.0) ? b6[i]:0.0;
+		
+
+		// Perform Solar Correction - not being used 
+		b221_reflcorr = b221val - .0426 * b6val ;
+		if (b221_reflcorr < 0) continue ;
+
+		//T22 = bb_radtotemp (4, b221val) ;
+		T22 = bb_radtotemp (4, b221_reflcorr) ;
+		b221val = b221_reflcorr ;
+		//T22 = bb_radtotemp (4, b221_reflcorr) ;
+		T32 = bb_radtotemp (12, b32val) ;
+		T32_global = bb_radtotemp (12, maxval32) ;
+		//zval = T22 - T32_global ;
+		zval = T22 - T32 ;
+		al_std[i] = zval ;
+		// check to ensure TDiff exceeded
+		if (zval <15. ) continue ;
+		fracval =( b221val / maxval) ;
+		if (fracval >.99) {
+			alind.push_back(i) ;
+			alvec.push_back (fracval) ;
+			//cout << alind.size() << " " << zval << endl ;
+		}
+
+	}
+	return alind.size() ;
+
+}
+
+// this is a nighttime experimental test where we try using the global band32
+// better rather than the current pixel band 32 to threshold band 22
+// val
+int alert::calc_max_dev (float *b21, float *b22, float *b32, float *max2232, float *al_std, vector <int> &alind, vector <float> &alvec) {
+
+	int i,  count=0 ;
+	float zval, fracval, b21val, b32val, b22val, b221val, maxval, maxval_32, maxval_22_0 ;
+	float T32, T22, T32_global ;
+
+	for (i=0; i<npix; i++) {
+		al_std[i] = -999. ;
+			
+		if (badpix[i]) {
+			continue ;
+		}
+		b21val = b21[i] ;
+		b22val = b22[i] ;
+		b32val = b32[i] ;
+		maxval = max2232[i] ;
+		maxval_32 = max2232[i+npix] ;
+		b221val = b22val ;
+                                    // check for bad data
+		if (b21val <= 0.01 && b22val <=0.01) continue ;
+		if (b22val < -9.9) b221val = b21val ;
+		// check for very cold pixel
+		if (b22val > b22max && b21val > b21max) continue ;
+		// only use 21 if 22 is saturated
+		T22 = bb_radtotemp (4, b221val) ;
+		T32 = bb_radtotemp (12, b32val) ;
+		maxval_22_0 = bb_temptorad (4, T32+12.) ;
+		
+		T32_global = bb_radtotemp (12, maxval_32) ;
+		zval = T22 - T32_global ;
+		al_std[i] = zval ;
+		fracval =( b221val / maxval_22_0) ;
+
+		if (zval <12.) continue ;
+		if (fracval >.999) {
+			alind.push_back(i) ;
+			alvec.push_back (fracval) ;
+			cout << alind.size() << " " << zval << endl ;
+		}
+
+	}
+	return alind.size() ;
+
+}
+int alert::calc_max (float minT, float *b21, float *b22, float *b32, float *max2232, float *al_std, vector <int> &alind, vector <float> &alvec) {
+
+	int i, count=0, samp ;
+	float zval, fracval, b21val, b32val, b22val, b221val, maxval ;
+	float T32, T22 ;
+
+	for (i=0; i<npix; i++) {
+		if (badpix[i]) continue ;
+		b21val = b21[i] ;
+		b22val = b22[i] ;
+		b32val = b32[i] ;
+		al_std[i] = 0. ;
+		maxval = max2232[i] ;
+		b221val = b22val ;
+        // check for bad data
+		if (b21val < 0.01 && b22val <0.01) continue ;
+		// check for very cold pixel
+		if (b22val <-9.9) b221val = b21[i] ;
+        // check for saturation
 		// only use 21 if 22 is saturated
 		if (b22val > 2.0) {
 			b221val = b21val ;
 		}
-		T22 = bb_radtotemp (4, b22val) ;
+		T22 = bb_radtotemp (4, b221val) ;
 		T32 = bb_radtotemp (12, b32val) ;
-		if (T22-T32 <15. && zval < 1.15) continue ;
-		zval =( b221val / maxval) ;
+		zval = T22 - T32 ;
+		fracval =( b221val / maxval) ;
 		al_std[i] = zval ;
-		if (zval >.95) {
+		if (zval <minT) continue ;
+		if (fracval >.995) {
 			alind.push_back(i) ;
-			alvec.push_back (zval) ;
+			alvec.push_back (fracval) ;
 			//cout << alind.size() << " " << zval << endl ;
 		}
 

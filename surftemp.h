@@ -12,7 +12,7 @@ using std::vector;
 #include "trig.h"
 
 #define TEMPB21(x)   (3634.22/log(1.2246e11/(1e6*x)+1.))
-#define RADB21(x) (1.2246e5/(exp(3634.22/(x))-1.))
+#define TEMP32(x) (1197.00/log(474.651/(x)+1.)) 
 #define ALERT_SAT_TERRA			1
 #define ALERT_SAT_AQUA			2
 

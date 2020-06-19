@@ -22,7 +22,7 @@ int main (int argc, char *argv[]) {
     int i, j, ns, nl, npts, maxsub ;
 	float inarr[9] ;
     FILE *fin, *fout ;	
-                    if (argc < 3) {
+    if (argc < 3) {
 		cout << "Usage: modis_calcmax filelist  outdir " << endl ;
 		exit(-1) ;
 	}
@@ -34,7 +34,7 @@ int main (int argc, char *argv[]) {
                     int this_mday ;
                     ns = 1200 ;
                     nl = 1200 ;
-                    npts = 15 ;
+                    npts = 10;
 
                     indat_22 = new uint16_t [ns * nl * npts] ; 
                     indat_32 = new uint16_t [ns * nl * npts] ; 
@@ -53,8 +53,8 @@ int main (int argc, char *argv[]) {
           }
           while (!feof(flistfil)) {
                     fscanf (flistfil, "%s", intmp) ;
-          
-					strcpy (infile, "/local/worldbase/021km/orig/") ;
+                    //strcpy (infile, "/local/worldbase/021km/orig/") ;
+					strcpy (infile, "/local/worldbase/021km/better/") ;
                     //strcpy (intmp, *++argv) ;
                     strcat (infile, intmp) ;
                     tmp = strstr (intmp, "t_") ;
@@ -66,20 +66,21 @@ int main (int argc, char *argv[]) {
                     // make sure that input file opens
                     if (fin ==NULL) {
                         cout << "Could not open : " << infile << endl ;
-                        fclose (fin) ;
-                        return (-1) ;
+                        //fclose (fin) ;
+                        continue ;
                     }
                     fread (indat_22, 2, ns * nl * npts, fin) ;
                     fclose (fin) ;
 
-                    strcpy (infile, "/local/worldbase/021km/orig/") ;
+                    //strcpy (infile, "/local/worldbase/021km/orig/") ;
+                    strcpy (infile, "/local/worldbase/021km/better/") ;
                     strcat (infile, rad32file) ;
 
                     fin = fopen (infile, "r") ;
                     if (fin ==NULL) {
                         cout << "Could not open : " << infile << endl ;
-                        fclose (fin) ;
-                        return (-1) ;
+                        //fclose (fin) ;
+                        continue ;
                     }
                     fread (indat_32, 2, ns * nl * npts, fin) ;
                     fclose (fin) ;
@@ -93,6 +94,7 @@ int main (int argc, char *argv[]) {
                     strcpy (tmp, "_max") ;
 
                     // go through line by line
+
                     for (i=0; i<ns * nl; i++) {
                         // load up histogram
                         maxsub = 0 ;
@@ -101,15 +103,17 @@ int main (int argc, char *argv[]) {
                         for (j=0; j<npts; j++) {
                             histo_22[j] = (float)indat_22[j * ns * nl+i] ;
                             histo_32[j] = (float)indat_32[j*ns*nl+i] ;
-                            temp32= al->bb_radtotemp(12., histo_32[j]/1000.) ;
-                            temp22= al->bb_radtotemp(4., histo_22[j]/1000.) ;
+                            //temp32= al->bb_radtotemp(12., histo_32[j]/1000.) ;
+                            //temp22= al->bb_radtotemp(4., histo_22[j]/1000.) ;
                             val22 = (float)indat_22[j * ns * nl+i] ;
                             val32 = (float)indat_32[j * ns * nl+i] ;
                             //temp_diff[j] = (val22 - val32)/(val22 + val32) ;
-                            temp_diff[j] = temp22 - temp32 ;
+                            //temp_diff[j] = temp22 - temp32 ;
                             // check if hotspot or a cloud, either case ignore....
-                            if (temp_diff[j] > 20.) continue ;
+							// change threshold temp from 15 to 20 
+                            //if (temp_diff[j] > 15.) continue ;
                             
+							// try doing search on band 32 to find max, not 22
                              if (histo_22[j] > maxval) {
                                     maxval = histo_22[j] ;
                                     maxsub = j ;
@@ -126,7 +130,6 @@ int main (int argc, char *argv[]) {
                         }
 
 					// median filt
-					/*****
 					int ii, jj, isub, jsub, count ;
 					for (i=0; i<ns * nl; i++) tmparr[i] = maxarr[i] ;
 
@@ -149,7 +152,6 @@ int main (int argc, char *argv[]) {
 							maxarr[i * ns + j] = fmedian (inarr, count) ;
 						}
 					}
-					*****/
 							
 
 

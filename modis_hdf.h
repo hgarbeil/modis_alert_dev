@@ -27,6 +27,7 @@ public:
     int16 *solzen, *solaz, *senszen, *sensaz;
     float *th_scales_offsets, *refl_scales_offsets;
     float *raddata_cal, *refdata_cal, *solsens;
+	float *glint ;
 	float b21max, b22max ;
     modis_hdf(char *, int);
     ~modis_hdf();
@@ -34,6 +35,7 @@ public:
     void get_aq_terra_flag () ;
     void init_MOD21();
     void init_MOD03();
+	int  calc_glint() ;
     int load_geometry();
     int load_thermal_bands();
     void calib_thermal_bands();
@@ -41,6 +43,7 @@ public:
     void calib_refSB_bands();
     void calib_geometry();
     void get_date_period(char *infile, int *datearr);
+    void get_date_period_fix(char *infile, int *datearr);
     void get_file_name(char *, char *);
 
 

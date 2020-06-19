@@ -15,7 +15,8 @@
 
 #include "sinu_1km.h"
 #include "surftemp.h"
-int mon_days[] = {1,31,62,92,123,153,184,214,244,275,305,336} ;
+int mon_days[] = {1,31,62,92,123,153,184,214,244,275,305,336,366} ;
+int mon_days_fix[] = {1,32,60,91,121,152,182,213,244,274,305,335,366} ;
 
 sinu_1km::sinu_1km() {
     Radius = 6371007.181 ;
@@ -61,12 +62,6 @@ int sinu_1km::get_gridnum (float lat, float lon, int *xloc, int *yloc) {
 	if (iy > 17) iy = 17 ;
 	if (ix > 35) ix = 35 ;
 	igrid = iy * 36 + ix ;
-	if (igrid > 500){
-		cout<<"igrid is " << igrid << endl ;
-		cout << "Lat : "<< lat<< endl ;
-		cout << "Lon : "<< lon<< endl ;
-		return (-1) ;
-	}
 		
 	return  (iy * 36 + ix) ;
 
@@ -742,6 +737,8 @@ int sinu_1km::get_max_array (float *lat, float *lon, int npix, int modisflag, fl
 		if (badpix[i]) continue ;
 		latval = lat[i] ;
 		lonval = lon[i] ;
+		if (lonval > 179.9) lonval = 179.9 ;
+		if (lonval < (-179.9)) lonval = -179.9 ;
 		gridnum = get_gridnum (latval, lonval, &xloc, &yloc) ;  
 
 		if (firstgrid) {
@@ -790,7 +787,8 @@ int sinu_1km::get_max_array (float *lat, float *lon, int npix, int modisflag, fl
 		//sprintf (infile, "/user3/hg/modis/highest_full/rad221_highest_%03d_0%1d_%02d_%02d_max\0",
 		// **********************************************************************************
 		// use the median filter max file 
-		sprintf (infile, "/user3/hg/modis/highest_filt/rad221_highest_%03d_0%1d_%02d_%02d_max\0",
+		//sprintf (infile, "/user3/hg/modis/highest_filt/rad221_highest_%03d_0%1d_%02d_%02d_max\0",
+		sprintf (infile, "maxfiles/rad221_highest_%03d_0%1d_%02d_%02d_max\0",
 			mday, modisflag, irow, icol) ;
 		fin = fopen (infile, "r") ;
 		if (fin ==NULL) {
@@ -811,6 +809,10 @@ int sinu_1km::get_max_array (float *lat, float *lon, int npix, int modisflag, fl
 			max2232[isamp] = 0 ;
 			max2232[isamp+npix] = 10 ;
 			continue ;
+		}
+		if (isamp==(1867L*1354+1271) ) {
+			int hg = 1;
+			hg *=1 ;
 		}
 			
 		gridnum = indii[isamp*3] ;

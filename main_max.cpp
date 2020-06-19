@@ -29,7 +29,7 @@ int main (int argc, char *argv[]) {
 	
 	float filecount =0, startlat, startlon, gspace ;
 	float *lat, *lon, *b21, *b32, *b22, latval, lonval, xdist, ydist, dist ;
-	int i, uval, thismonth, ns_modis, nl_modis, npix_modis, datearr[5], modisflag ;
+	int i, uval, thismonth, ns_modis, nl_modis, npix_modis, datearr[5], datearrfx[5], modisflag ;
 	int nx, ny, npix_grid, gridnum, alerthist[7] ;
 	long unxtime ;
 	float cent_lat, cent_lon ;
@@ -67,10 +67,10 @@ int main (int argc, char *argv[]) {
 	FILE *fmon_log = fopen (monlog, "w") ;
 
                     // write headings for ASCII column files
-	fprintf (flog, "FName\tJDay\tUnixtime\t#NTI\t98_MAX\t100_MAX\t110_MAX\r\n") ;
+	fprintf (flog, "FName\tJDay\tUnixtime\t#NTI\tDEL12\tDEL17\tDEL22\r\n") ;
 	fprintf (fstd_log, "FName\tUnixtime\tLon\tLat\tSamp\tLine\tNTI\t#FRACMAX\tb221\tb22MAX\tb32max\tdist\tSolZenith\r\n") ;
 	fprintf (fnti_log, "FName\tUnixtime\tLon\tLat\tSamp\tLine\tNTI\tFRACMAX\r\n") ;
-	fprintf (fmon_log, "Month\t#NTI\t98MAX\t100_MAX\t110_MAX\r\n") ;
+	fprintf (fmon_log, "Month\t#NTI\tDEL15\tDEL20\tDEL25\r\n") ;
 	
                     /***
                     * layers and location files
@@ -103,21 +103,6 @@ int main (int argc, char *argv[]) {
 	ns_modis = 1354 ;
 	nl_modis = 2030 ;
 
-	// hawaii
-	//cent_lat = 19.4 ;
-	//cent_lon = -155.25 ;
-	// iceland
-	//cent_lat = 64.64 ;
-	//cent_lon = -17.528 ;
-                  // hawaii
-	//cent_lat = 19.4 ;
-	//cent_lon = -155.25 ;
-	// iceland
-	//cent_lat = 64.64 ;
-	//cent_lon = -17.528 ;
-	// newguinea
-	//cent_lat = 0. ;
-	//cent_lon = 138. ;21
 	npix_modis = ns_modis * nl_modis ;
 
                     // alloc arrays for input global mn, stdv and output arrays
@@ -126,8 +111,6 @@ int main (int argc, char *argv[]) {
 
 	FILE *ffile = fopen (flist, "r") ;
 
-	//strcpy (infile, "/hotspot3/data2/modis/hawaii/terra/MOD021KM.A2014003.0845.061.2017307163855.hdf") ;
-	//strcpy (infile_geo, "/hotspot3/data2/modis/hawaii/terra/MOD03.A2014003.0845.061.2017307163343.hdf") ;
 
 
 	
@@ -139,6 +122,7 @@ int main (int argc, char *argv[]) {
 	unsigned short *layers = new unsigned short  [6 * nx * ny] ;
 	float *al_nti = new float [1354L * 2030] ;
 	float *al_max = new float [1354L * 2030] ;
+	float tdiff ;
 
 	sinu_1km *sinu  = new sinu_1km () ;
 	sinu->makegrid (basegrid, startlat, startlon, gspace, nx, ny) ;
@@ -168,7 +152,9 @@ int main (int argc, char *argv[]) {
 
 	therm = new modis_hdf (infile, modisflag) ;
 	therm->get_date_period (infile, datearr) ;
-	unxtime = converttime_unix (datearr[0], datearr[1], datearr[2], datearr[3], datearr[4], 0) ;
+	therm->get_date_period_fix (infile, datearrfx) ;
+	//unxtime = converttime_unix (datearr[0], datearrfx[1], datearrfx[2], datearrfx[3], datearrfx[4], 0) ;
+	unxtime = converttime_unix (datearr[0], datearrfx[1], datearrfx[2], datearrfx[3], datearrfx[4], 0) ;
 	al->set_max (therm->b21max, therm->b22max) ;
 	thismonth = datearr[1] - 1 ;
 	this_mday = mon_days[thismonth];
@@ -178,11 +164,15 @@ int main (int argc, char *argv[]) {
 		delete therm ;
 		continue ;
 	}
-	if (this_mday > 62) {
+	*/
+	if (this_mday < 184) {
+		delete therm;
+		continue ;
+	}
+	if (this_mday > 185) {
 		delete therm;
 		break ;
 	}
-	*/
 	geo = new modis_hdf (infile_geo,modisflag ) ;
 	geo->get_date_period (infile_geo, datearr) ;
 	geo->init_MOD03() ;
@@ -253,6 +243,7 @@ int main (int argc, char *argv[]) {
 	// 0 is nti hits
 	//int num_std_hits = al->calc_nstdv (b21, b22, mnstdv, al_max, al_max_inds, al_max_vals) ;
     int num_std_hits = 0 ;
+    //int num_max_hits = al->calc_max_dev (b21, b22, b32, max2232, al_max, al_max_inds, al_max_vals) ;
     int num_max_hits = al->calc_max (b21, b22, b32, max2232, al_max, al_max_inds, al_max_vals) ;
 	if (num_hits==0 && num_max_hits==0) {
 		sprintf (outstr, "%s %d\t %ld\t %d\t %d\t %d\t %d \r\n", tmpname, datearr[2], unxtime, alerthist[0], alerthist[1], alerthist[2], 
@@ -293,6 +284,7 @@ int main (int argc, char *argv[]) {
 	}
 	for (i=0; i<al_max_inds.size() ; i++) {
 		index = al_max_inds.at(i) ;
+		tdiff = al_max[index] ;
 		iline = index / ns_modis ;
 		isamp = index - (iline * ns_modis) ;
 		latval = lat[index] ;
@@ -301,7 +293,10 @@ int main (int argc, char *argv[]) {
 		grid_y = int((startlat - latval) /gspace +0.5) ; 
 		if (grid_x < 0 || grid_y < 0) continue ;
 		if (grid_x >= nx || grid_y >= ny) continue ;
-		if (al_max_vals.at(i) > .950) {
+		if (al_max_vals.at(i) < .99 || tdiff < 12.) continue ;
+		//if (al_max_vals.at(i) > .950) {
+		
+		if (tdiff > 12.) {
 			layers[3 * npix_grid + grid_y*nx+grid_x]++ ;
 			// 1 is 2 sdev
 			monthhist[thismonth*4+1]++ ;
@@ -310,7 +305,7 @@ int main (int argc, char *argv[]) {
 			locdata[2*npix_grid + grid_y*nx+grid_x] = 0 ;
 			alerthist[1]++ ;
 		}
-		if (al_max_vals.at(i) > 1.0) {
+		if (tdiff > 15.) {
 			layers[4 * npix_grid + grid_y*nx+grid_x]++ ;
 			alerthist[2]++ ;
 			// 2 is 2.6 sdev
@@ -319,7 +314,7 @@ int main (int argc, char *argv[]) {
 			locdata[npix_grid + grid_y*nx+grid_x] = 255 ;
 			locdata[2*npix_grid + grid_y*nx+grid_x] = 0 ;
 		}
-		if (al_max_vals.at(i) > 1.1) {
+		if (tdiff>20.) {
 			layers[5 * npix_grid + grid_y*nx+grid_x]++ ;
 			alerthist[3]++ ;
 			// 3 is 3 sdev

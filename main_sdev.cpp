@@ -19,7 +19,7 @@ int main (int argc, char *argv[]) {
 	
 	float filecount =0, startlat, startlon, gspace ;
 	float *lat, *lon, *b21, *b32, *b22, latval, lonval, xdist, ydist, dist ;
-	int i, uval, thismonth, ns_modis, nl_modis, npix_modis, datearr[5], modisflag ;
+	int i, uval, thismonth, ns_modis, nl_modis, npix_modis, datearr[5], datearrfx[5], modisflag ;
 	int nx, ny, npix_grid, gridnum, alerthist[7] ;
 	long unxtime ;
 	float cent_lat, cent_lon ;
@@ -152,7 +152,8 @@ int main (int argc, char *argv[]) {
 
 	therm = new modis_hdf (infile, modisflag) ;
 	therm->get_date_period (infile, datearr) ;
-	unxtime = converttime_unix (datearr[0], datearr[1], datearr[2], datearr[3], datearr[4], 0) ;
+	therm->get_date_period_fix (infile, datearrfx) ;
+	unxtime = converttime_unix (datearrfx[0], datearrfx[1], datearrfx[2], datearrfx[3], datearrfx[4], 0) ;
 	al->set_max (therm->b21max, therm->b22max) ;
 	thismonth = datearr[1] - 1 ;
 	this_mday = mon_days[thismonth];
@@ -161,11 +162,15 @@ int main (int argc, char *argv[]) {
 		delete therm ;
 		continue ;
 	}
-	if (this_mday > 62) {
+	*/
+	if (this_mday < 184) {
+		delete therm ;
+		continue ;
+	}
+	if (this_mday > 185) {
 		delete therm;
 		break ;
 	}
-	*/
 	geo = new modis_hdf (infile_geo,modisflag ) ;
 	geo->get_date_period (infile_geo, datearr) ;
 	geo->init_MOD03() ;

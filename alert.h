@@ -11,8 +11,13 @@ public :
 	unsigned char *badpix ;
 	void set_max (float, float) ;
 	void set_badpix (unsigned char *b) ;
-	int calc_max (float *b21, float *b22, float *b32, float *max2232, float *alval, vector <int> &alind, vector <float> &alvec) ;
+	int calc_max (float minT, float *b21, float *b22, float *b32, float *max2232, float *alval, vector <int> &alind, vector <float> &alvec) ;
+	int calc_max_dev (float *b21, float *b22, float *b32, float *max2232, float *alval, vector <int> &alind, vector <float> &alvec) ;
+	int calc_max_day (float *b6, float *b21, float *b22, float *b32, float *max2232, float *alval, vector <int> &alind, vector <float> &alvec) ;
+	int calc_max_day_dev (float *b6, float *b21, float *b22, float *b32, float *max2232, float *alval, vector <int> &alind, vector <float> &alvec) ;
 	int calc_nti (float *b21, float *b22, float *b31, float *alval, vector <int>&alind, 
+		vector<float>&alvec) ;
+	int calc_nti_day (float *b6, float *b21, float *b22, float *b31, float *alval, vector <int>&alind, 
 		vector<float>&alvec) ;
 	int calc_nstdv (float *b21, float *b22, float *mnstdv, float *alval, vector <int> &alind, vector <float> &alvec) ;
         int calc_nti_stdv (float *b21, float *b22, float *b32, float *mnstdv, float *al_std, vector <int> &alind, vector <float> &alvec)  ;

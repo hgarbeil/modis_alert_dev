@@ -1,5 +1,11 @@
 #include "modis_hdf.h"
 #include "time.h"
+#include "sinu_1km.h"
+
+extern int mon_days [] ;
+extern int mon_days_fix [] ;
+#define DtoR .01745329
+
 
 modis_hdf::modis_hdf (char *infile, int mf) {
 
@@ -31,7 +37,7 @@ void modis_hdf::get_date_period (char *infile, int *datearr) {
 	
 	//int imon, days_in_month[] ={31,28,31,30,31,30,31,31,30,31,30,31} ;
         int imon, days_in_month[] = {32,30,30,31,30,31,30,31,30,30,31,30} ;
-        int days_for_month[] = {1,32,62,92,123,153,184,214,245,275,305,336,367} ; 
+        //int days_for_month[] = {1,32,62,92,123,153,184,214,245,275,305,336,367} ; 
         
 	char cfile [420], *tmp ;
 	int year, iyear, yday, yday1, mday, mon, hr, min ;
@@ -47,23 +53,16 @@ void modis_hdf::get_date_period (char *infile, int *datearr) {
 	
         
         for (imon=0; imon<12; imon++) {
-            if (yday >= days_for_month[imon] && yday < days_for_month[imon+1]) {
+            //if (yday >= days_for_month[imon] && yday < days_for_month[imon+1]) {
+            if (yday >= mon_days[imon] && yday < mon_days[imon+1]) {
                 break ;
             }
         }
-        mday = yday ;
+        //mday = yday - days_for_month[imon]+1 ;
+        mday = yday - mon_days[imon]+1 ;
         mon = imon + 1 ;
 	 ;
-        /*
-	for (imon=0; imon<12; imon++) {
-		if (yday1 <= days_in_month[imon]) 
-			break ;
-		yday1 -= days_in_month[imon] ;
-		mday = yday1 ;
-	}
-	mon = imon + 1 ;
-        */
-        printf ("Year is %d  day is %d\r\n", iyear, mday ) ;
+    //printf ("Year is %d  day is %d\r\n", iyear, mday ) ;
 	tmp = strtok (NULL, ".") ;
 	hr = atoi (tmp) /100 ;
 	hour = hr ;
@@ -74,22 +73,63 @@ void modis_hdf::get_date_period (char *infile, int *datearr) {
 	datearr[2] = mday ;
 	datearr[3] = hr ;
 	datearr[4] = min ;
+}
 
-        
+void modis_hdf::get_date_period_fix (char *infile, int *datearr) {
 	
+	//int imon, days_in_month[] ={31,28,31,30,31,30,31,31,30,31,30,31} ;
+        int imon, days_in_month[] = {32,30,30,31,30,31,30,31,30,30,31,30} ;
+        //int days_for_month[] = {1,32,62,92,123,153,184,214,245,275,305,336,367} ; 
+        
+	char cfile [420], *tmp ;
+	int year, iyear, yday, yday1, mday, mon, hr, min ;
+	strcpy (cfile, infile) ;
 
+	tmp = strtok (cfile, ".") ;
+	tmp = strtok (NULL, ".") ;
+	year = atoi (&tmp[1]) ;
+	iyear = year / 1000 ;
+	if (iyear %4 ==0) 
+		days_in_month[1]++ ;
+	yday = year - (iyear *1000) ;
+	
+        
+        for (imon=0; imon<12; imon++) {
+            //if (yday >= days_for_month[imon] && yday < days_for_month[imon+1]) {
+            if (yday >= mon_days_fix[imon] && yday < mon_days_fix[imon+1]) {
+                break ;
+            }
+        }
+        //mday = yday - days_for_month[imon]+1 ;
+        mday = yday - mon_days_fix[imon]+1 ;
+        mon = imon + 1 ;
+	 ;
+    //printf ("Year is %d  day is %d\r\n", iyear, mday ) ;
+	tmp = strtok (NULL, ".") ;
+	hr = atoi (tmp) /100 ;
+	hour = hr ;
+	min = atoi (tmp) - (hr * 100) ;
 
+	datearr[0] = iyear ;
+	datearr[1] = mon ;
+	datearr[2] = mday ;
+	datearr[3] = hr ;
+	datearr[4] = min ;
 }
 
 void modis_hdf::init_MOD21() {
     thermdata = new uint16 [16 * 1354 * 2030L];
     th_scales_offsets = new float [2 * 16];
-    //refldata = new uint16 [5 * 1354 * 2030];
-    //refl_scales_offsets = new float [2 * 5];
+	// called refl but actually radiance scales and offsets for EV_500_Aggr1km_RefSB
+    refldata = new uint16 [5 * 1354 * 2030];
+    refl_scales_offsets = new float [2 * 5];
+	// only get band 6
+    refdata_cal = new float [1 * 1354 * 2030L];
+	// thermal bands
     raddata_cal = new float [4 * 1354 * 2030L];
-    //refdata_cal = new float [1 * 1354 * 2030L];
-    //load_refSB_bands();
-    //calib_refSB_bands();
+
+    load_refSB_bands();
+    calib_refSB_bands();
     load_thermal_bands(); //calib_thermal_bands() ;
     calib_thermal_bands();
 
@@ -125,6 +165,7 @@ void modis_hdf::init_MOD03 () {
     sensaz = new short int [1354 * 2030];
     senszen = new short int [1354 * 2030];
     solsens = new float [4 * 1354 * 2030];
+	glint = new float [1354 * 2030] ;
     status = load_geometry();
     calib_geometry();
     get_aq_terra_flag();
@@ -132,6 +173,10 @@ void modis_hdf::init_MOD03 () {
 }
 
 
+    //refldata = new uint16 [5 * 1354 * 2030];
+    //refl_scales_offsets = new float [2 * 5];
+	// only get band 6
+    //refdata_cal = new float [1 * 1354 * 2030L];
 
 
 modis_hdf::~modis_hdf() {
@@ -139,6 +184,9 @@ modis_hdf::~modis_hdf() {
 		delete [] thermdata ;
 		delete [] th_scales_offsets ;
 		delete [] raddata_cal ;
+		delete [] refldata ;
+		delete [] refl_scales_offsets ;
+		delete [] refdata_cal ;
 	}
 	else {
 		delete [] solzen ;
@@ -149,6 +197,7 @@ modis_hdf::~modis_hdf() {
 		delete [] latarr ;
 		delete [] lonarr ;
 		delete [] badpix ;
+		delete [] glint ;
 	}
 }
 
@@ -238,9 +287,10 @@ int modis_hdf::load_geometry () {
 	else dayflag= true ;
 	// ensure we have good lat lon
     for (i=0; i<npix; i++){
+		   zenval = solzen[i] * .01 ;
 		   // check for bad lat lon information
            if (latarr[i]>90. || latarr[i]<-90) {
-				cout << "Bad lat val at " << i<< "  " << latarr[i] << endl ;
+				//cout << "Bad lat val at " << i<< "  " << latarr[i] << endl ;
 				badpix[i] = 1 ;
 				bpcount++ ;
 				geom_status = false ;
@@ -259,22 +309,28 @@ int modis_hdf::load_geometry () {
 			loctime  = lonarr[i] /15. + hour ;
 			if (loctime < 0) loctime += 24 ;
 			if (loctime > 24) loctime -= 24 ;
+			
 			switch (modflag) {
+				// night aqua
 				case 0 : 
 					if (loctime >= 23 || loctime <=4) 
 						badflag = false ;
+					if (zenval < 90) badflag = true ;
 					break ;
 				case 1 :
 					if (loctime >= 8 && loctime <=13) 
 						badflag = false ;
+					if (zenval > 90) badflag = true ;
 					break ;
 				case 2 :
 					if (loctime >= 11 && loctime <= 16) 
 						badflag = false ;
+					if (zenval > 90) badflag = true ;
 					break ;
 				case 3 :
 					if (loctime >= 20 || loctime <= 1) 
 						badflag = false ;
+					if (zenval < 90) badflag = true ;
 					break ;
 			}
 					
@@ -285,10 +341,12 @@ int modis_hdf::load_geometry () {
 			}
 		
         }
-		cout <<"BP count is : "<<bpcount << endl ;
+		cout <<"**************************BP count is :    **************** : "<<bpcount << endl ;
         return (1) ;
 
 }
+
+
 /*
 int modis_hdf::load_geometry () {
 	int i, is, npix ;
@@ -348,7 +406,7 @@ int modis_hdf::load_geometry () {
 				continue ;
 			}
             if (latarr[i]>90. || latarr[i]<-90) {
-				cout << "Bad lat val at " << i<< "  " << latarr[i] << endl ;
+				//cout << "Bad lat val at " << i<< "  " << latarr[i] << endl ;
 				badpix[i] = 1 ;
 				bpcount++ ;
 				geom_status = false ;
@@ -394,6 +452,7 @@ void modis_hdf::get_aq_terra_flag () {
 }
 	
 
+
 void modis_hdf::calib_geometry () {
 	int i, npix = 1354L * 2030 ;
 
@@ -403,6 +462,34 @@ void modis_hdf::calib_geometry () {
 		solsens[2*npix + i] = sensaz[i] * .01 ;
 		solsens[3*npix + i] = senszen[i] * .01 ;
 	}
+}
+
+
+int modis_hdf::calc_glint () {
+
+	int i, count=0, npix = 1354L * 2030 ;
+	float *sol_az0, *sol_zen0, *sen_az0, *sen_zen0, relaz ;
+	float cos0, sin0, glintlimit ;
+	sol_az0 = &solsens[0] ;
+	sol_zen0 = &solsens[npix] ;
+	sen_az0 = &solsens[npix*2] ;
+	sen_zen0 = &solsens[npix*3] ;
+	glintlimit = 12. * DtoR ;
+
+	for (i=0; i<npix; i++) {
+		relaz = cos((sen_az0[i] - sol_az0[i]) * DtoR) ;
+		cos0 = cos(DtoR*sen_zen0[i]) * cos(DtoR*sol_zen0[i]) ;
+		sin0 = sin(DtoR*sen_zen0[i]) * sin(DtoR*sol_zen0[i]) ;
+		glint[i] = acos(cos0 - sin0*relaz) ;
+		if (glint[i] < glintlimit) {
+			badpix[i] = 1 ;
+			count++ ;
+		}
+	}
+	cout << "Number of glint pixels is : " << count << endl ;
+
+
+
 }
 
 int  modis_hdf::load_thermal_bands() {
@@ -459,6 +546,7 @@ void modis_hdf::load_refSB_bands() {
 
 	int32 startarr [3] = {0,0,0} ;
 	int32 stride [3] = {1,1,1} ;
+	// only need 4 bands as we are interested in b6 of 3,4,5,6,&7
 	int32 edge [3] = {4,2030,1354} ;
 
 	for (i=0; i<n_datasets; i++) {
